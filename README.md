@@ -380,11 +380,13 @@ Defaults, from `{dataDir}/config.json`, schema `p3f.policy.v1`:
 | `approval.preApprovedHosts` | `[]` | Hosts pre-approved to auto-pay above threshold. |
 | `guards.trust.enabled` | `true` | The default-on trust check. |
 | `guards.trust.mode` | `"advisory"` | `advisory` warns; `enforce` blocks. |
+| `guards.trust.minScore` | `null` | Minimum acceptable TrustScore; below it the guard blocks or warns. `null` uses verdict-based blocking only, and it is ignored when the API returns a null score. |
 | `guards.trust.blockVerdicts` | `["unreliable"]` | Verdicts that block or warn. |
 | `guards.trust.blockUnrated` | `false` | `unrated` passes by default. |
 | `guards.trust.onUnavailable` | `"block"` | Enforce-mode behavior when the guard cannot answer. |
 | `guards.trust.dailyBudgetUsd` | `0` | 0 means free tier only. |
 | `guards.safety.enabled` | `false` | Token safety screen; needs `tokenAddress`. |
+| `guards.safety.mode` | `"enforce"` | `advisory` warns; `enforce` blocks. Applies only when the safety guard is enabled. |
 | `guards.safety.depth` | `"basic"` | `deep` is always paid. |
 | `guards.safety.blockVerdicts` | `["danger"]` | Token verdicts that block. |
 | `guards.safety.blockDeployerVerdicts` | `["serial_rugger"]` | Deployer verdicts, deep only. |
