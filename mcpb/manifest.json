@@ -33,165 +33,23 @@
   "tools": [
     {
       "name": "paid_fetch",
-      "description": "Fetch a URL, paying an HTTP 402 (x402) paywall automatically within policy.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string",
-            "format": "uri"
-          },
-          "method": {
-            "enum": [
-              "GET",
-              "POST",
-              "PUT",
-              "DELETE",
-              "PATCH",
-              "HEAD"
-            ],
-            "default": "GET"
-          },
-          "headers": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "body": {
-            "type": "string"
-          },
-          "maxAmountUsd": {
-            "type": "number",
-            "minimum": 0
-          },
-          "dryRun": {
-            "type": "boolean",
-            "default": false
-          },
-          "responseMode": {
-            "enum": [
-              "inline",
-              "file"
-            ],
-            "default": "inline"
-          },
-          "tokenAddress": {
-            "type": "string"
-          },
-          "chain": {
-            "enum": [
-              "solana",
-              "base",
-              "ethereum"
-            ]
-          }
-        },
-        "required": [
-          "url"
-        ]
-      }
+      "description": "Fetch a URL, paying an HTTP 402 (x402) paywall automatically within policy."
     },
     {
       "name": "payment_quote",
-      "description": "Check what a paid URL costs and whether policy would allow paying it, without paying.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string",
-            "format": "uri"
-          },
-          "method": {
-            "enum": [
-              "GET",
-              "POST",
-              "PUT",
-              "DELETE",
-              "PATCH",
-              "HEAD"
-            ],
-            "default": "GET"
-          },
-          "headers": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "body": {
-            "type": "string"
-          },
-          "tokenAddress": {
-            "type": "string"
-          },
-          "chain": {
-            "enum": [
-              "solana",
-              "base",
-              "ethereum"
-            ]
-          }
-        },
-        "required": [
-          "url"
-        ]
-      }
+      "description": "Check what a paid URL costs and whether policy would allow paying it, without paying."
     },
     {
       "name": "spend_status",
-      "description": "Show today's spending: totals, remaining budgets, holds, recent payments.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      }
+      "description": "Show today's spending: totals, remaining budgets, holds, recent payments."
     },
     {
       "name": "list_receipts",
-      "description": "Query the local payment receipt ledger (audit trail).",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "sinceTs": {
-            "type": "number"
-          },
-          "host": {
-            "type": "string"
-          },
-          "outcome": {
-            "type": "string"
-          },
-          "limit": {
-            "type": "number",
-            "default": 50,
-            "minimum": 1,
-            "maximum": 200
-          }
-        }
-      }
+      "description": "Query the local payment receipt ledger (audit trail)."
     },
     {
       "name": "approve_pending",
-      "description": "List or resolve payments waiting for human approval (queue mode).",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "enum": [
-              "list",
-              "approve",
-              "deny"
-            ]
-          },
-          "approvalId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "action"
-        ]
-      }
+      "description": "List or resolve payments waiting for human approval (queue mode)."
     }
   ],
   "user_config": {
