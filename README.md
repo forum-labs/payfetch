@@ -1,5 +1,7 @@
 # payfetch
 
+[![smithery badge](https://smithery.ai/badge/forum-labs/payfetch)](https://smithery.ai/servers/forum-labs/payfetch)
+
 payfetch lets an AI agent fetch a URL and, when the server answers HTTP 402 (the
 x402 payment protocol), pay for it automatically, but only within a spending policy
 you control. It is non-custodial: you bring your own wallet, the key stays on your
