@@ -1,0 +1,72 @@
+{
+  "name": "@forum-labs/payfetch",
+  "version": "1.0.0",
+  "mcpName": "io.github.forum-labs/payfetch",
+  "description": "Buy-side x402/HTTP-402 paying-fetch client for AI agents, under operator-owned spending policy (caps, allow/deny, human approval, trust checks, local receipts). Non-custodial.",
+  "keywords": [
+    "x402",
+    "http-402",
+    "mcp",
+    "ai-agent",
+    "payments",
+    "usdc",
+    "base",
+    "spending-controls",
+    "paywall"
+  ],
+  "homepage": "https://forum-labs.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forum-labs/payfetch.git"
+  },
+  "bugs": "https://github.com/forum-labs/payfetch/issues",
+  "license": "MIT",
+  "author": "Forum Labs",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "bin": {
+    "payfetch-mcp": "dist/bin/payfetch-mcp.js",
+    "payfetch": "dist/bin/payfetch.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "mcpb/manifest.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:mcpb": "node mcpb/build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
+    "@types/node": "^22",
+    "esbuild": "^0.28.1",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^4"
+  },
+  "dependencies": {
+    "@coinbase/cdp-sdk": "1.51.2",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@x402/core": "2.17.0",
+    "undici": "8.5.0",
+    "viem": "2.54.1"
+  }
+}

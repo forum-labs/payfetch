@@ -1,0 +1,104 @@
+{
+  "manifest_version": "0.2",
+  "name": "payfetch",
+  "display_name": "payfetch",
+  "version": "1.0.0",
+  "description": "Buy-side paying-fetch client: fetch URLs and pay HTTP 402 (x402) paywalls automatically, under operator-owned spending policy (caps, allow/deny lists, human approval, trust checks, receipts). Non-custodial — bring your own wallet.",
+  "long_description": "payfetch lets an AI agent fetch a URL and, if it returns HTTP 402 (x402 protocol), pay for it automatically WITHIN a policy the operator controls: per-call / per-day / per-host / lifetime spend caps, host allow/deny lists, a human-approval threshold, a default-ON trust check against the Forum Labs trust API, and an immutable local receipt for every attempt. The agent can never raise its own limits. Keys are never transmitted or logged. Directory submission is not offered (payment connectors are policy-blocked); this bundle is for MANUAL install only.",
+  "author": {
+    "name": "Forum Labs"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/payfetch-mcp.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/payfetch-mcp.mjs"],
+      "env": {
+        "PAYFETCH_PRIVATE_KEY": "${user_config.private_key}",
+        "PAYFETCH_KEY_FILE": "${user_config.key_file}",
+        "PAYFETCH_CDP_API_KEY_ID": "${user_config.cdp_api_key_id}",
+        "PAYFETCH_CDP_API_KEY_SECRET": "${user_config.cdp_api_key_secret}",
+        "PAYFETCH_CDP_WALLET_SECRET": "${user_config.cdp_wallet_secret}",
+        "PAYFETCH_CDP_ACCOUNT_NAME": "${user_config.cdp_account_name}",
+        "PAYFETCH_DATA_DIR": "${user_config.data_dir}",
+        "PAYFETCH_TEST_MODE": "${user_config.test_mode}",
+        "PAYFETCH_APPROVER": "${user_config.approver}",
+        "PAYFETCH_VIA": "${user_config.via}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "paid_fetch", "description": "Fetch a URL, paying an HTTP 402 (x402) paywall automatically within policy." },
+    { "name": "payment_quote", "description": "Check what a paid URL costs and whether policy would allow paying it, without paying." },
+    { "name": "spend_status", "description": "Show today's spending: totals, remaining budgets, holds, recent payments." },
+    { "name": "list_receipts", "description": "Query the local payment receipt ledger (audit trail)." },
+    { "name": "approve_pending", "description": "List or resolve payments waiting for human approval (queue mode)." }
+  ],
+  "user_config": {
+    "private_key": {
+      "type": "string",
+      "title": "Wallet private key (0x-hex)",
+      "description": "Signer option 1 of 3. A 0x-hex EVM private key. SECRET — stored in the OS keychain, never transmitted or logged. Use a DEDICATED low-balance wallet. Set exactly ONE signer option.",
+      "sensitive": true,
+      "required": false
+    },
+    "key_file": {
+      "type": "file",
+      "title": "Wallet key file",
+      "description": "Signer option 1 (alt): path to a file containing a 0x-hex private key. REFUSED at startup if the file is group/world-readable — chmod 600 it.",
+      "required": false
+    },
+    "cdp_api_key_id": {
+      "type": "string",
+      "title": "CDP API key id",
+      "description": "Signer option 3 of 3 (Coinbase CDP server wallet, YOUR account). Requires all three CDP fields. SECRET.",
+      "sensitive": true,
+      "required": false
+    },
+    "cdp_api_key_secret": {
+      "type": "string",
+      "title": "CDP API key secret",
+      "description": "Coinbase CDP API key secret. SECRET — stored in the OS keychain.",
+      "sensitive": true,
+      "required": false
+    },
+    "cdp_wallet_secret": {
+      "type": "string",
+      "title": "CDP wallet secret",
+      "description": "Coinbase CDP wallet secret. SECRET — stored in the OS keychain.",
+      "sensitive": true,
+      "required": false
+    },
+    "cdp_account_name": {
+      "type": "string",
+      "title": "CDP account name (optional)",
+      "description": "Optional named CDP EVM account. Defaults to a stable name so the same buyer wallet is resolved across restarts.",
+      "required": false
+    },
+    "data_dir": {
+      "type": "directory",
+      "title": "Data directory",
+      "description": "Where the receipt ledger, state, and config.json live. Defaults to ~/.payfetch.",
+      "required": false
+    },
+    "test_mode": {
+      "type": "string",
+      "title": "Test mode (set to 1 to enable)",
+      "description": "When set to any value, marks receipts test:true and refuses Base MAINNET quotes (Base Sepolia only). Leave blank for production.",
+      "required": false
+    },
+    "approver": {
+      "type": "string",
+      "title": "Approval authority (set to 1 to enable)",
+      "description": "Set to 1 to grant this session approval authority. NOTE: for safety, the server REFUSES TO START if this is set together with a queue-capable approval mode (approval.mode 'queue', or 'elicit' with elicitFallback 'queue') — the agent must not approve its own payments. The supported human gate is elicit-to-human. Blank = list-only.",
+      "required": false
+    },
+    "via": {
+      "type": "string",
+      "title": "Embedding framework slug (optional)",
+      "description": "Optional 'via=' attribution tag sent on trust/safety guard calls only.",
+      "required": false
+    }
+  }
+}
