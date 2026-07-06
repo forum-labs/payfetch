@@ -1,0 +1,35 @@
+name: Publish to MCP Registry
+
+# Manual trigger. Authenticates to the MCP registry via GitHub Actions OIDC, so the
+# publishing identity is the forum-labs org itself (io.github.forum-labs namespace) —
+# no interactive device login, no personal account, no browser account intermingling.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+jobs:
+  mcp-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/download/v1.7.9/mcp-publisher_linux_amd64.tar.gz" -o mcp.tgz
+          tar -xzf mcp.tgz
+          chmod +x mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+          mcp-publisher --help >/dev/null && echo "mcp-publisher installed"
+
+      - name: Validate server.json
+        run: mcp-publisher validate
+
+      - name: Authenticate via GitHub Actions OIDC (forum-labs identity)
+        run: mcp-publisher login github-oidc
+
+      - name: Publish
+        run: mcp-publisher publish
