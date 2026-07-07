@@ -124,8 +124,8 @@ Pay for real with `paid_fetch`:
 ```
 
 `maxAmountUsd` tightens the per-call cap for this one call. It can only lower the
-limit, never raise it. If the price is above your approval threshold, a human is
-asked to confirm (see Approvals). The result carries the response body, the payment
+limit, never raise it. If the price is above your approval threshold, approval is
+required first (see Approvals). The result carries the response body, the payment
 outcome and transaction reference, any warnings, and a `receiptId`.
 
 ## The spending policy
@@ -174,8 +174,11 @@ allow", and it never widens future authority.
 - `elicit` (default): the client prompts a human with the host, resource, amount,
   network and asset, guard results, and today's remaining budgets. They approve once
   or deny. The prompt times out after 120 seconds and is then treated as a denial.
-  Some MCP clients cannot service an elicitation prompt (Claude Desktop cancels it
-  immediately; Claude Code supports it). payfetch tells apart a real human "deny"
+  Some MCP clients cannot service an elicitation prompt: as of Claude Code v2.1.198
+  and current Claude Desktop, neither does (Claude Code does not advertise the
+  elicitation capability; Claude Desktop advertises it but cancels the prompt
+  immediately). When a client adds elicitation support, the prompt works with no
+  payfetch change. payfetch tells apart a real human "deny"
   from a client that simply cannot ask, and it never treats "cannot ask" as a silent
   denial. When a payment is blocked only because the client cannot elicit, the tool
   result says so and names the ways to allow it.
@@ -375,7 +378,7 @@ Defaults, from `{dataDir}/config.json`, schema `p3f.policy.v1`:
 | `caps.dailyUsd` | `2.00` | Max per UTC day. |
 | `caps.perHostDailyUsd` | `1.00` | Max per host per UTC day. |
 | `caps.totalUsd` | `null` | Optional lifetime cap. |
-| `approval.thresholdUsd` | `0.10` | Above this, a human approves. |
+| `approval.thresholdUsd` | `0.10` | Above this, approval is required. |
 | `approval.mode` | `"elicit"` | `elicit`, `queue`, or `deny`. |
 | `approval.elicitFallback` | `"deny"` | Used when the client cannot elicit. Fail-closed. |
 | `approval.preApprovedUpToUsd` | `null` | No-dialog ceiling for above-threshold payments. |
