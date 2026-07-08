@@ -1,20 +1,62 @@
 {
   "name": "@forum-labs/payfetch-agentkit",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Coinbase AgentKit action-provider adapter for payfetch — exposes paying-fetch under the operator's spending policy as AgentKit actions. Non-custodial. UNPUBLISHED, pending human review.",
+  "version": "0.1.0",
+  "description": "Coinbase AgentKit action-provider adapter for payfetch — exposes paying-fetch under the operator's spending policy as AgentKit actions. Non-custodial; the agent cannot widen its own spending limits.",
+  "keywords": [
+    "x402",
+    "http-402",
+    "agentkit",
+    "coinbase",
+    "ai-agent",
+    "payments",
+    "payfetch",
+    "spending-controls"
+  ],
+  "homepage": "https://forum-labs.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forum-labs/payfetch.git",
+    "directory": "adapters/agentkit"
+  },
+  "bugs": "https://github.com/forum-labs/payfetch/issues",
   "license": "MIT",
   "author": "Forum Labs <eng@forum-labs.com>",
   "type": "module",
-  "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+  "engines": {
+    "node": ">=22"
   },
-  "dependencies": {
-    "@coinbase/agentkit": "0.10.4",
-    "zod": "^3.23.8"
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "peerDependencies": {
-    "@forum-labs/payfetch": "1.0.0"
+    "@coinbase/agentkit": "^0.10.4"
+  },
+  "dependencies": {
+    "@forum-labs/payfetch": "^1.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@coinbase/agentkit": "0.10.4",
+    "@types/node": "^22",
+    "typescript": "^5",
+    "vitest": "^4"
   }
 }

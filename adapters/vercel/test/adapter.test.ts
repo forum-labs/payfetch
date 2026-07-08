@@ -30,9 +30,16 @@ import {
   payfetchTools,
 } from "../src/index.js";
 
-import { createPayfetch, type Payfetch } from "../../../src/index.js";
-import type { ConfigIo, EnvRecord } from "../../../src/config.js";
-import { adaptFetch } from "../../../src/core/transport.js";
+// payfetch's PUBLIC surface is imported from the built package (proving the
+// published entry, not source). The hermetic test fakes (test/fakes.ts) are
+// payfetch's internal, unpublished test seams, so they stay a source import.
+import {
+  adaptFetch,
+  createPayfetch,
+  type ConfigIo,
+  type EnvRecord,
+  type Payfetch,
+} from "@forum-labs/payfetch";
 import {
   FakeFetch,
   FakeSigner,

@@ -1,20 +1,62 @@
 {
   "name": "@forum-labs/payfetch-vercel",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Vercel AI SDK tool adapter for payfetch — exposes paying-fetch under the operator's spending policy as AI SDK tools. Non-custodial. UNPUBLISHED, pending human review.",
+  "version": "0.1.0",
+  "description": "Vercel AI SDK tool adapter for payfetch — exposes paying-fetch under the operator's spending policy as AI SDK tools. Non-custodial; the agent cannot widen its own spending limits.",
+  "keywords": [
+    "x402",
+    "http-402",
+    "vercel",
+    "ai-sdk",
+    "ai-agent",
+    "payments",
+    "payfetch",
+    "spending-controls"
+  ],
+  "homepage": "https://forum-labs.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forum-labs/payfetch.git",
+    "directory": "adapters/vercel"
+  },
+  "bugs": "https://github.com/forum-labs/payfetch/issues",
   "license": "MIT",
   "author": "Forum Labs <eng@forum-labs.com>",
   "type": "module",
-  "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+  "engines": {
+    "node": ">=22"
   },
-  "dependencies": {
-    "ai": "7.0.18",
-    "zod": "^3.25.76"
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "peerDependencies": {
-    "@forum-labs/payfetch": "1.0.0"
+    "ai": "^7.0.18"
+  },
+  "dependencies": {
+    "@forum-labs/payfetch": "^1.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "ai": "7.0.18",
+    "@types/node": "^22",
+    "typescript": "^5",
+    "vitest": "^4"
   }
 }

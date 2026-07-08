@@ -47,24 +47,23 @@ import {
   type WalletProvider,
 } from "@coinbase/agentkit";
 
-// payfetch is imported from source (this adapter lives in the payfetch repo and
-// is unpublished). If it is ever split into a standalone package, these become
-// `@forum-labs/payfetch` imports and payfetch must export buildFromEnv /
-// realConfigIo from its public entry.
+// payfetch is imported from its PUBLISHED public entry (`@forum-labs/payfetch`,
+// the only `exports` path). `buildFromEnv` / `realConfigIo` / `policyLockNotice`
+// and the `ConfigIo` / `EnvRecord` types are re-exported from that entry as of
+// payfetch 1.0.1 (before then they were reachable only via a blocked deep import).
 import {
+  buildFromEnv,
   createPayfetch,
+  paymentRejectedHint,
+  policyLockNotice,
+  realConfigIo,
+  type ConfigIo,
   type CreatePayfetchOpts,
+  type EnvRecord,
   type FetchOpts,
   type Payfetch,
   type Receipt,
-} from "../../../src/index.js";
-import {
-  buildFromEnv,
-  realConfigIo,
-  type ConfigIo,
-  type EnvRecord,
-} from "../../../src/config.js";
-import { policyLockNotice } from "../../../src/mcp/tools.js";
+} from "@forum-labs/payfetch";
 
 // ---------------------------------------------------------------------------
 // Attribution tag (non-negotiable) — see createAgentKitPayfetch below.
@@ -261,6 +260,12 @@ async function formatFetchResult(
     receipt.outcome === "approval_timeout";
   if (blockedByMissingApproval) {
     out.approvalGuidance = aboveThresholdGuidance(dataDir);
+  }
+  // A paid request the server rejected with a 4xx (1.0.1): honest hint, no
+  // settlement overclaim. Mirrors payfetch's MCP paid_fetch result.
+  if (receipt.outcome === "payment_rejected") {
+    const st = receipt.http?.status ?? null;
+    if (st !== null && st >= 400 && st < 500) out.hint = paymentRejectedHint(st);
   }
   return out;
 }
