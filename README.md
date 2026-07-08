@@ -472,3 +472,5 @@ npm run build       # emit dist/, the compiled JS the package ships
 ## License
 
 MIT. See [LICENSE](LICENSE). Copyright (c) 2026 Forum Labs.
+
+- [JMT x402 Agent Tools](https://jmt-x402-proxy.jmthomasofficial.workers.dev) — 25 paid x402 endpoints on Base mainnet: web search, AI analysis, crypto/stock data, SEC filings, company intel, news, sentiment, macro dashboard. $0.001-$0.15/call USDC. Local LLM-powered.
