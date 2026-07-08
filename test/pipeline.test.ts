@@ -15,7 +15,11 @@ import { describe, expect, it } from "vitest";
 import { createPayfetch } from "../src/index.js";
 import { GUARD_ADVISORY_BUDGET_MS, GUARD_SCREEN_BUDGET_MS } from "../src/core/constants.js";
 import { adaptFetch } from "../src/core/transport.js";
-import { classifyFromParts, classifyTerminal } from "../src/core/pipeline.js";
+import {
+  applyJsonContentTypeDefault,
+  classifyFromParts,
+  classifyTerminal,
+} from "../src/core/pipeline.js";
 import type { TransportResult } from "../src/core/transport.js";
 import type { Policy } from "../src/core/policy.js";
 import { createSafetyGuard, createTrustGuard } from "../src/guards/index.js";
@@ -528,6 +532,57 @@ describe("transport integration + reserved-header hygiene (SPEC §11)", () => {
     const retry = f.calls[1];
     expect(retry.headers["x-payment"]).toBeDefined();
     expect(retry.headers["x-payment"]).not.toBe("evil"); // our real proof header
+  });
+});
+
+describe("Content-Type auto-default for JSON bodies (1.0.1 §1)", () => {
+  // The $0.007-dies-on-a-header bug: a JSON POST with no Content-Type is sent as
+  // text/plain, and the seller 400s the ALREADY-SIGNED paid retry → payment_rejected.
+  const EXA_BODY = JSON.stringify({ query: "latest x402 news", numResults: 3 });
+
+  it("defaults application/json on BOTH the probe AND the paid retry", async () => {
+    const fetch = new FakeFetch().on("POST", URL1, { status: 402, jsonBody: challenge402() }, PAID_OK);
+    const { client, fetch: f } = mkClient({ fetch });
+    const { receipt } = await client.fetch(URL1, { method: "POST", body: EXA_BODY });
+    expect(receipt.outcome).toBe("paid_delivered"); // no longer dies on the header
+    expect(f.calls[0].headers["content-type"]).toBe("application/json"); // probe leg
+    expect(f.calls[1].headers["content-type"]).toBe("application/json"); // paid retry leg
+    expect(f.calls[1].body).toBe(EXA_BODY); // same body, now correctly typed
+  });
+
+  it("an EXPLICIT caller Content-Type always wins (never overridden)", async () => {
+    const fetch = new FakeFetch().on("POST", URL1, { status: 200, textBody: "ok" });
+    const { client, fetch: f } = mkClient({ fetch });
+    await client.fetch(URL1, {
+      method: "POST",
+      body: EXA_BODY,
+      headers: { "Content-Type": "application/vnd.custom+json" },
+    });
+    expect(f.calls[0].headers["content-type"]).toBe("application/vnd.custom+json");
+  });
+
+  it("a NON-JSON body is left untouched (no Content-Type invented)", async () => {
+    const fetch = new FakeFetch().on("POST", URL1, { status: 200, textBody: "ok" });
+    const { client, fetch: f } = mkClient({ fetch });
+    await client.fetch(URL1, { method: "POST", body: "just plain text" });
+    expect(f.calls[0].headers["content-type"]).toBeUndefined();
+  });
+
+  it("applyJsonContentTypeDefault: object/array JSON → default; scalar/non-JSON/empty/explicit → untouched", () => {
+    // Adds only for an unambiguous JSON object/array body with no caller header.
+    expect(applyJsonContentTypeDefault({}, '{"a":1}')["Content-Type"]).toBe("application/json");
+    expect(applyJsonContentTypeDefault({}, "[1,2,3]")["Content-Type"]).toBe("application/json");
+    // Scalars are ambiguous (could be text) → never relabeled.
+    expect(applyJsonContentTypeDefault({}, "42")["Content-Type"]).toBeUndefined();
+    expect(applyJsonContentTypeDefault({}, '"hello"')["Content-Type"]).toBeUndefined();
+    // Not JSON, or empty/absent → untouched.
+    expect(applyJsonContentTypeDefault({}, "not json")["Content-Type"]).toBeUndefined();
+    expect(applyJsonContentTypeDefault({}, "")["Content-Type"]).toBeUndefined();
+    expect(applyJsonContentTypeDefault({}, null)["Content-Type"]).toBeUndefined();
+    // Explicit header (any case) wins and is preserved verbatim.
+    expect(applyJsonContentTypeDefault({ "content-type": "text/plain" }, '{"a":1}')).toEqual({
+      "content-type": "text/plain",
+    });
   });
 });
 

@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "payfetch",
   "display_name": "payfetch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Buy-side paying-fetch client: fetch URLs and pay HTTP 402 (x402) paywalls automatically, under operator-owned spending policy (caps, allow/deny lists, human approval, trust checks, receipts). Non-custodial \u2014 bring your own wallet.",
   "long_description": "payfetch lets an AI agent fetch a URL and, if it returns HTTP 402 (x402 protocol), pay for it automatically WITHIN a policy the operator controls: per-call / per-day / per-host / lifetime spend caps, host allow/deny lists, a human-approval threshold, a default-ON trust check against the Forum Labs trust API, and an immutable local receipt for every attempt. The agent can never raise its own limits. Keys are never transmitted or logged. Directory submission is not offered (payment connectors are policy-blocked); this bundle is for MANUAL install only.",
   "author": {

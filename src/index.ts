@@ -306,3 +306,16 @@ export { adaptFetch, parseIpv4 };
 export type { Decision, SpendStatus, FetchOpts };
 export type { Policy } from "./core/policy.js";
 export type { Receipt } from "./core/ledger.js";
+
+// --- Public adapter surface (1.0.1, ADDITIVE) -----------------------------
+// Out-of-tree framework adapters (@forum-labs/payfetch-agentkit / -vercel) build
+// a payfetch instance from the operator's env EXACTLY as the CLI/MCP server do
+// (`buildFromEnv` + `realConfigIo`) and mirror the fixed policy-lock / payment-
+// rejected copy. The package `exports` map exposes only `"."`, so a published
+// consumer cannot reach these via a deep `src/` import — they must be on the main
+// entry. Re-exported here additively; no existing export is removed or renamed.
+// (`config.ts`→`index.ts` and `mcp/tools.ts`→`index.ts` back-imports are type-only,
+// so this introduces no runtime import cycle.)
+export { buildFromEnv, realConfigIo } from "./config.js";
+export type { ConfigIo, EnvRecord } from "./config.js";
+export { policyLockNotice, paymentRejectedHint } from "./mcp/tools.js";

@@ -19,11 +19,13 @@ import { describe, expect, it } from "vitest";
 import { createPayfetch, type Payfetch } from "../src/index.js";
 import { adaptFetch } from "../src/core/transport.js";
 import {
+  PAID_FETCH_INPUT_SCHEMA,
   PAYFETCH_TOOLS,
   TOOL_DESCRIPTIONS,
   TOOL_NAMES,
   UnknownToolError,
   dispatchTool,
+  paymentRejectedHint,
   policyLockNotice,
   type ToolContext,
 } from "../src/mcp/tools.js";
@@ -105,31 +107,48 @@ describe("MCP tool surface — names & order (SPEC §9)", () => {
   });
 });
 
-describe("MCP tool surface — description strings VERBATIM (SPEC §9)", () => {
-  it("paid_fetch description matches §9 exactly", () => {
+describe("MCP tool surface — description strings VERBATIM (SPEC §9, 1.0.1 hardening)", () => {
+  it("paid_fetch description matches §9 exactly (with the 1.0.1 policy-lock addendum)", () => {
     expect(TOOL_DESCRIPTIONS.paid_fetch).toBe(
-      "Fetch a URL, automatically paying if it requires payment (HTTP 402, x402 protocol) — within the operator's spending policy. Free URLs are fetched normally at no cost. Use payment_quote first if you only want to know the price. Payments above the operator's approval threshold will ask the human for confirmation.",
+      "Fetch a URL, automatically paying if it requires payment (HTTP 402, x402 protocol) — within the operator's spending policy. Free URLs are fetched normally at no cost. Use payment_quote first if you only want to know the price. Payments above the operator's approval threshold will ask the human for confirmation. Spending policy is operator-owned config; no tool can widen it.",
     );
   });
-  it("payment_quote description matches §9 exactly", () => {
+  it("payment_quote description matches §9 exactly (with the 1.0.1 policy-lock addendum)", () => {
     expect(TOOL_DESCRIPTIONS.payment_quote).toBe(
-      "Check what a paid URL costs and whether the current spending policy would allow paying it, WITHOUT paying. Returns the price, payment terms, trust-check results, and the policy decision.",
+      "Check what a paid URL costs and whether the current spending policy would allow paying it, WITHOUT paying. Returns the price, payment terms, trust-check results, and the policy decision. Spending policy is operator-owned config; no tool can widen it.",
     );
   });
-  it("spend_status description matches §9 exactly", () => {
+  it("spend_status description matches §9 exactly (with the 1.0.1 policy-lock addendum)", () => {
     expect(TOOL_DESCRIPTIONS.spend_status).toBe(
-      "Show today's agent spending: totals, remaining budgets overall and per host, active holds, and recent payments.",
+      "Show today's agent spending: totals, remaining budgets overall and per host, active holds, and recent payments. Spending policy is operator-owned config; no tool can widen it.",
     );
   });
-  it("list_receipts description matches §9 exactly", () => {
+  it("list_receipts description matches §9 exactly (with the 1.0.1 policy-lock addendum)", () => {
     expect(TOOL_DESCRIPTIONS.list_receipts).toBe(
-      "Query the local payment receipt ledger (audit trail). Filter by time, host, or outcome.",
+      "Query the local payment receipt ledger (audit trail). Filter by time, host, or outcome. Spending policy is operator-owned config; no tool can widen it.",
     );
   });
-  it("approve_pending description matches §9 exactly", () => {
+  it("approve_pending description matches §9 exactly (with the 1.0.1 policy note)", () => {
     expect(TOOL_DESCRIPTIONS.approve_pending).toBe(
-      "List or resolve payments waiting for human approval (queue mode). Approving grants a one-time re-run permission for that exact payment.",
+      "List or resolve payments waiting for human approval (queue mode). Approving grants a one-time re-run permission for that exact payment. It only resolves payments already queued for approval; it cannot change spending policy — no payfetch tool can widen operator-owned limits.",
     );
+  });
+
+  it("every tool description carries the operator-owned policy-lock invariant (1.0.1 §2c)", () => {
+    // The descriptions ARE the agent's UI; each must make "an agent can widen its
+    // own limits" impossible to infer (the demo hallucination that motivated 1.0.1).
+    for (const [name, desc] of Object.entries(TOOL_DESCRIPTIONS)) {
+      expect(desc, `${name} must state no tool can widen policy`).toMatch(
+        /no (payfetch )?tool can widen/i,
+      );
+    }
+  });
+
+  it("maxAmountUsd is documented as LOWER-only, never raise (1.0.1 §2a)", () => {
+    const props = PAID_FETCH_INPUT_SCHEMA.properties as Record<string, { description?: string }>;
+    const d = props.maxAmountUsd.description ?? "";
+    expect(d).toMatch(/lower/i);
+    expect(d).toMatch(/never raise/i);
   });
 });
 
@@ -295,6 +314,50 @@ describe("paid_fetch — anti-prompt-injection notice on denial (SPEC §9)", () 
     expect(res.policyNotice).toContain("/data/config.json");
     expect(res.policyNotice).toContain("cannot be changed from this session");
     expect(res.remainingBudgets).toBeTruthy();
+    pf.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// payment_rejected hint on a 4xx paid response (1.0.1 §1) — honest, no overclaim
+// ---------------------------------------------------------------------------
+
+describe("paid_fetch — payment_rejected 4xx hint (1.0.1)", () => {
+  it("a 4xx on the paid leg surfaces an honest hint that does NOT claim settlement", async () => {
+    // 402 challenge, then the PAID retry is rejected 400 (the $0.007-dies-on-a-
+    // header shape). classifyFromParts → payment_rejected, hold kept, no txRef.
+    const fetch = new FakeFetch().on(
+      "GET",
+      URL1,
+      { status: 402, jsonBody: challenge402() },
+      { status: 400, textBody: "bad request" },
+    );
+    const pf = buildPf(fetch);
+    const res = (await dispatchTool(ctxOf(pf), "paid_fetch", { url: URL1 })) as {
+      outcome: string;
+      status: number | null;
+      hint?: string;
+      payment: { txRef: string | null } | null;
+    };
+    expect(res.outcome).toBe("payment_rejected");
+    expect(res.status).toBe(400);
+    expect(res.hint).toBe(paymentRejectedHint(400));
+    expect(res.hint).toContain("HTTP 400");
+    expect(res.hint).toContain("does NOT confirm settlement");
+    // Honesty: no settlement tx was recorded (charged only if a tx is shown).
+    expect(res.payment?.txRef ?? null).toBeNull();
+    pf.close();
+  });
+
+  it("a 2xx paid delivery carries NO rejection hint", async () => {
+    const fetch = new FakeFetch().on("GET", URL1, { status: 402, jsonBody: challenge402() }, PAID_OK);
+    const pf = buildPf(fetch);
+    const res = (await dispatchTool(ctxOf(pf), "paid_fetch", { url: URL1 })) as {
+      outcome: string;
+      hint?: string;
+    };
+    expect(res.outcome).toBe("paid_delivered");
+    expect(res.hint).toBeUndefined();
     pf.close();
   });
 });

@@ -1,7 +1,10 @@
 /**
- * P3′ payfetch — MCP tool surface (SPEC §9). Names, description strings, and
- * input schemas are NORMATIVE and transcribed VERBATIM from SPEC §9; they ship
- * unchanged. This module is the ONLY place the five tools are defined.
+ * P3′ payfetch — MCP tool surface (SPEC §9). Names and input schemas are
+ * NORMATIVE from SPEC §9. The description strings were transcribed verbatim from
+ * §9 and then HARDENED in 1.0.1 (§2): each now states the operator-owned
+ * policy-lock invariant ("no tool can widen it") so an agent cannot infer it may
+ * raise its own limits (the demo hallucination). This module is the ONLY place
+ * the five tools are defined.
  *
  * The handlers are THIN wrappers over the `Payfetch` library surface (SPEC §10):
  * they marshal tool arguments in and receipts out. There is ZERO business logic
@@ -39,20 +42,22 @@ export const TOOL_NAMES = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Tool descriptions (SPEC §9 — VERBATIM, LLM-tool-chooser copy; ship unchanged)
+// Tool descriptions (SPEC §9 base + 1.0.1 §2 hardening) — LLM-tool-chooser copy.
+// Each carries the operator-owned policy-lock invariant; maxAmountUsd is
+// documented LOWER-only in its schema (below). Test-asserted verbatim (mcp.test).
 // ---------------------------------------------------------------------------
 
 export const TOOL_DESCRIPTIONS = {
   paid_fetch:
-    "Fetch a URL, automatically paying if it requires payment (HTTP 402, x402 protocol) — within the operator's spending policy. Free URLs are fetched normally at no cost. Use payment_quote first if you only want to know the price. Payments above the operator's approval threshold will ask the human for confirmation.",
+    "Fetch a URL, automatically paying if it requires payment (HTTP 402, x402 protocol) — within the operator's spending policy. Free URLs are fetched normally at no cost. Use payment_quote first if you only want to know the price. Payments above the operator's approval threshold will ask the human for confirmation. Spending policy is operator-owned config; no tool can widen it.",
   payment_quote:
-    "Check what a paid URL costs and whether the current spending policy would allow paying it, WITHOUT paying. Returns the price, payment terms, trust-check results, and the policy decision.",
+    "Check what a paid URL costs and whether the current spending policy would allow paying it, WITHOUT paying. Returns the price, payment terms, trust-check results, and the policy decision. Spending policy is operator-owned config; no tool can widen it.",
   spend_status:
-    "Show today's agent spending: totals, remaining budgets overall and per host, active holds, and recent payments.",
+    "Show today's agent spending: totals, remaining budgets overall and per host, active holds, and recent payments. Spending policy is operator-owned config; no tool can widen it.",
   list_receipts:
-    "Query the local payment receipt ledger (audit trail). Filter by time, host, or outcome.",
+    "Query the local payment receipt ledger (audit trail). Filter by time, host, or outcome. Spending policy is operator-owned config; no tool can widen it.",
   approve_pending:
-    "List or resolve payments waiting for human approval (queue mode). Approving grants a one-time re-run permission for that exact payment.",
+    "List or resolve payments waiting for human approval (queue mode). Approving grants a one-time re-run permission for that exact payment. It only resolves payments already queued for approval; it cannot change spending policy — no payfetch tool can widen operator-owned limits.",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -85,7 +90,12 @@ export const PAID_FETCH_INPUT_SCHEMA: JsonSchema = {
     method: { enum: [...HTTP_METHOD_ENUM], default: "GET" },
     headers: { type: "object", additionalProperties: { type: "string" } },
     body: { type: "string" },
-    maxAmountUsd: { type: "number", minimum: 0 },
+    maxAmountUsd: {
+      type: "number",
+      minimum: 0,
+      description:
+        "Tightens the per-call cap for this one call. Can only LOWER the limit, never raise it.",
+    },
     dryRun: { type: "boolean", default: false },
     responseMode: { enum: [...RESPONSE_MODE_ENUM], default: "inline" },
     tokenAddress: { type: "string" },
@@ -187,6 +197,25 @@ export const PAYFETCH_TOOLS: readonly ToolDefinition[] = [
  */
 export function policyLockNotice(dataDir: string): string {
   return `Spending limits and lists are set by the operator in ${dataDir}/config.json — they cannot be changed from this session.`;
+}
+
+/**
+ * An honest hint for a `payment_rejected` outcome whose paid response came back
+ * 4xx: the server REJECTED the paid request (it was not settled). The most common
+ * cause is a malformed request — e.g. a JSON body sent without a
+ * `Content-Type: application/json` header (payfetch auto-defaults that since
+ * 1.0.1, so an explicit-header caller who overrode it, or a differently-malformed
+ * request, is the usual culprit). It deliberately does NOT overclaim settlement:
+ * a `payment_rejected` keeps the budget hold and records no settlement tx, so the
+ * agent is told it was charged ONLY if a settlement transaction is shown.
+ */
+export function paymentRejectedHint(status: number): string {
+  return (
+    `The server rejected the paid request (HTTP ${status}) — this usually means the request ` +
+    `was malformed, so check the request headers and body (for example, a JSON body needs a ` +
+    `Content-Type: application/json header). This does NOT confirm settlement: you were ` +
+    `charged only if a settlement transaction is shown.`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +359,13 @@ async function mapPaidFetchResult(
     (receipt.notes.includes("elicit_unsupported") || receipt.notes.includes("elicit_cancelled"))
   ) {
     denied.approvalGuidance = elicitBlockedGuidance(dataDir);
+  }
+  // A paid request the server rejected with a 4xx (the $0.007-dies-on-a-header
+  // class, 1.0.1): surface an HONEST hint (check headers/body) WITHOUT claiming
+  // settlement — payment_rejected keeps the hold and records no settlement tx.
+  if (receipt.outcome === "payment_rejected") {
+    const st = receipt.http?.status ?? null;
+    if (st !== null && st >= 400 && st < 500) denied.hint = paymentRejectedHint(st);
   }
   return denied;
 }

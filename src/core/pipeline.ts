@@ -366,8 +366,10 @@ export class PayfetchEngine {
     const caps = this.capsOf(policy);
 
     const method = (init.method ?? "GET").toUpperCase();
-    const userHeaders = stripReservedHeaders(init.headers);
     const body = typeof init.body === "string" ? init.body : null;
+    // Content-Type auto-default (1.0.1) applied ONCE here so both legs (probe +
+    // paid retry) carry it; explicit caller headers always win. See the helper.
+    const userHeaders = applyJsonContentTypeDefault(stripReservedHeaders(init.headers), body);
     const responseMode = opts.responseMode ?? "inline";
     // L2 (dryRun normalization): ONE boolean drives both the guard-tier gate (D8)
     // and the D9 stop, so a truthy non-boolean `opts.dryRun` can never suppress the
@@ -1333,6 +1335,38 @@ function preApprovedNote(policy: Policy, host: string, quote: PaymentQuote): Pre
 
 function microUsd(x: number): number {
   return Number.isFinite(x) ? Math.round(x * 1_000_000) : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Content-Type auto-default (1.0.1): when a request carries a body, the caller
+ * supplied NO Content-Type (any case), and the body parses as a JSON object/array,
+ * default `Content-Type: application/json`. WHATWG fetch / undici otherwise send a
+ * string body as `text/plain`, which strict JSON APIs answer with a 400 — and on
+ * the PAYING leg that burns an already-SIGNED x402 authorization on a header (the
+ * observed `$0.007-dies-on-a-header` bug: Exa-shape POST → `payment_rejected`).
+ * Applied ONCE in `run()` (after reserved-header stripping) so BOTH the initial
+ * 402-probing request AND the paid retry carry it. An EXPLICIT caller Content-Type
+ * ALWAYS wins; a scalar / non-JSON / empty body is left untouched (text/plain
+ * default preserved) — the relabel is conservative, only for unambiguous JSON.
+ */
+export function applyJsonContentTypeDefault(
+  headers: Record<string, string>,
+  body: string | null,
+): Record<string, string> {
+  if (body === null || body.length === 0) return headers;
+  for (const k of Object.keys(headers)) {
+    if (k.toLowerCase() === "content-type") return headers; // caller was explicit → wins
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return headers; // not JSON → keep the text/plain default
+  }
+  // Only an object/array body is UNAMBIGUOUSLY JSON; a bare scalar (number /
+  // quoted string / bool / null) could legitimately be text, so never relabel it.
+  if (typeof parsed !== "object" || parsed === null) return headers;
+  return { ...headers, "Content-Type": "application/json" };
 }
 
 /** Strip reserved header names from user-supplied headers (SPEC §11). */
