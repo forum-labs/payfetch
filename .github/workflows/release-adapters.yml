@@ -34,6 +34,14 @@ jobs:
           done
           echo "::error::core @forum-labs/payfetch@1.0.1 not on registry after ~5min — publish core first"; exit 1
 
+      # Each adapter's prepublishOnly runs `build && typecheck && test`. The typecheck/test graph
+      # reaches into the CORE repo source (test/fakes.ts → src/payer/x402.ts, which import @x402/core
+      # + viem). Those resolve from the repo-root node_modules, which an isolated adapter-dir install
+      # does NOT populate — so install root deps first (matches the local env where prepublishOnly
+      # passes). --ignore-scripts: we only need the dependency tree present for module resolution.
+      - name: Install root deps (core src is typechecked by the adapter prepublishOnly)
+        run: npm ci --ignore-scripts
+
       - name: Publish @forum-labs/payfetch-agentkit
         working-directory: adapters/agentkit
         env:
