@@ -1,0 +1,59 @@
+name: Release Adapters
+
+# Manually triggered (workflow_dispatch) AFTER @forum-labs/payfetch@1.0.1 (the core)
+# is live on npm — the `v1.0.1` tag push publishes core via release.yml. This then
+# publishes the two adapter packages (@forum-labs/payfetch-agentkit / -vercel) with
+# provenance, using the same NPM_TOKEN repo secret. Idempotent: an adapter already
+# at its package.json version is skipped, so a partial re-run is safe. Each adapter's
+# `prepublishOnly` (build + typecheck + test) runs on publish.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish-adapters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Wait for core @forum-labs/payfetch@1.0.1 to be installable
+        run: |
+          for i in $(seq 1 30); do
+            if npm view @forum-labs/payfetch@1.0.1 version >/dev/null 2>&1; then
+              echo "core 1.0.1 is live on the registry"; exit 0
+            fi
+            echo "waiting for core 1.0.1 on registry (attempt $i/30)"; sleep 10
+          done
+          echo "::error::core @forum-labs/payfetch@1.0.1 not on registry after ~5min — publish core first"; exit 1
+
+      - name: Publish @forum-labs/payfetch-agentkit
+        working-directory: adapters/agentkit
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if npm view "@forum-labs/payfetch-agentkit@$VER" version >/dev/null 2>&1; then
+            echo "agentkit@$VER already published — skipping"; exit 0
+          fi
+          npm install
+          npm publish --provenance --access public
+
+      - name: Publish @forum-labs/payfetch-vercel
+        working-directory: adapters/vercel
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if npm view "@forum-labs/payfetch-vercel@$VER" version >/dev/null 2>&1; then
+            echo "vercel@$VER already published — skipping"; exit 0
+          fi
+          npm install
+          npm publish --provenance --access public
